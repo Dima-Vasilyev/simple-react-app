@@ -1,70 +1,171 @@
-# Getting Started with Create React App
+# AuthApp — Full-Stack Authentication System
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A production-ready authentication system built with React, Express, and MongoDB. Covers the full auth lifecycle: registration, email verification, login, token refresh, password reset, and account lockout.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## Tech Stack
 
-### `npm start`
+| Layer | Technology |
+|---|---|
+| Frontend | React 19, React Router v7, Axios |
+| Backend | Node.js, Express 4 |
+| Database | MongoDB, Mongoose |
+| Auth | JWT (access + refresh tokens), bcryptjs |
+| Email | Nodemailer (Ethereal for dev, any SMTP for prod) |
+| Security | Helmet, express-rate-limit, express-validator |
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+---
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Features
 
-### `npm test`
+- **Registration** with email verification (24-hour link)
+- **Login** with JWT access token (15 min) + refresh token (7 days, HTTP-only cookie)
+- **Refresh token rotation** — each use issues a new token; reuse triggers full session invalidation
+- **Password reset** via email (1-hour link)
+- **Account lockout** after 5 failed login attempts (2-hour cooldown)
+- **Token stored in memory** (not localStorage) — survives refresh via cookie, immune to XSS
+- **Rate limiting** per endpoint per IP
+- **Helmet** security headers (CSP, HSTS, X-Frame-Options, etc.)
+- Passwords hashed with **bcrypt cost factor 12**
+- SHA-256 hashed tokens in DB — a breach cannot replay raw tokens
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+---
 
-### `npm run build`
+## Project Structure
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```
+├── server/                    # Express API
+│   ├── src/
+│   │   ├── config/db.js       # MongoDB connection
+│   │   ├── controllers/       # Route handlers
+│   │   ├── middleware/        # JWT auth, input validation
+│   │   ├── models/User.js     # Mongoose schema + lockout logic
+│   │   ├── routes/auth.js     # Auth endpoints + rate limits
+│   │   └── utils/             # Token helpers, email sender
+│   ├── .env.example
+│   └── package.json
+└── src/                       # React app
+    ├── api/
+    │   ├── axios.js            # Instance with silent token-refresh interceptor
+    │   └── tokenStore.js       # In-memory access token (not localStorage)
+    ├── contexts/AuthContext.js # Session restore on mount, forced logout handler
+    ├── components/
+    │   ├── Navbar.js
+    │   └── ProtectedRoute.js
+    ├── pages/
+    │   ├── Login.js
+    │   ├── Register.js
+    │   ├── Dashboard.js
+    │   ├── ForgotPassword.js
+    │   ├── ResetPassword.js
+    │   └── VerifyEmail.js
+    └── styles/auth.css
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+---
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Getting Started
 
-### `npm run eject`
+### Prerequisites
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+- Node.js 18+
+- MongoDB — install with Homebrew:
+  ```bash
+  brew tap mongodb/brew && brew install mongodb-community
+  brew services start mongodb/brew/mongodb-community
+  ```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### 1. Clone and install
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+```bash
+git clone https://github.com/Dima-Vasilyev/simple-react-app.git
+cd simple-react-app
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+npm install                        # frontend deps
+cd server && npm install           # backend deps
+```
 
-## Learn More
+### 2. Configure the server
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```bash
+cp server/.env.example server/.env
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+Open `server/.env` and fill in:
 
-### Code Splitting
+```env
+MONGODB_URI=mongodb://localhost:27017/auth-app
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+# Generate each with: node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"
+JWT_ACCESS_SECRET=<random 64-char hex>
+JWT_REFRESH_SECRET=<different random 64-char hex>
 
-### Analyzing the Bundle Size
+# Free test SMTP — create an account at https://ethereal.email
+EMAIL_HOST=smtp.ethereal.email
+EMAIL_PORT=587
+EMAIL_USER=<ethereal user>
+EMAIL_PASS=<ethereal pass>
+EMAIL_FROM=noreply@authapp.dev
+EMAIL_FROM_NAME=AuthApp
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+CLIENT_URL=http://localhost:3000
+```
 
-### Making a Progressive Web App
+### 3. Start
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+```bash
+# Terminal 1 — API on port 5001
+cd server && npm run dev
 
-### Advanced Configuration
+# Terminal 2 — React on port 3000
+npm start
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+Open [http://localhost:3000](http://localhost:3000). The React dev server proxies all `/api/*` requests to Express — no CORS configuration needed in development.
 
-### Deployment
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+## API Reference
 
-### `npm run build` fails to minify
+All routes are prefixed `/api/auth`.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+| Method | Route | Auth | Description |
+|---|---|---|---|
+| `POST` | `/register` | — | Create account, send verification email |
+| `POST` | `/login` | — | Returns access token + sets refresh cookie |
+| `POST` | `/refresh` | Cookie | Rotate refresh token, return new access token |
+| `POST` | `/logout` | Cookie | Invalidate refresh token, clear cookie |
+| `GET` | `/me` | Bearer | Return current user |
+| `GET` | `/verify-email?token=` | — | Verify email address |
+| `POST` | `/resend-verification` | — | Re-send verification email |
+| `POST` | `/forgot-password` | — | Send password reset email |
+| `POST` | `/reset-password` | — | Set new password, invalidate all sessions |
+
+### Rate limits
+
+| Endpoint group | Limit |
+|---|---|
+| Auth endpoints | 10 requests / 15 min / IP |
+| Password reset | 5 requests / 1 hr / IP |
+| Global | 200 requests / 15 min / IP |
+
+---
+
+## Password Requirements
+
+Minimum 8 characters including at least one of each:
+- Uppercase letter (A–Z)
+- Lowercase letter (a–z)
+- Number (0–9)
+- Special character (`@$!%*?&`)
+
+---
+
+## Production Checklist
+
+- [ ] Set `NODE_ENV=production` — enables the `Secure` flag on the refresh-token cookie
+- [ ] Use a Redis-backed rate limiter (`rate-limit-redis`) so limits survive restarts
+- [ ] Replace Ethereal with a real SMTP provider (SendGrid, Postmark, AWS SES)
+- [ ] Build and serve the React app — `npm run build` then serve `build/` statically
+- [ ] Set `CLIENT_URL` to your production domain for CORS and email links
