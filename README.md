@@ -79,8 +79,8 @@ A production-ready authentication system built with React, Express, and MongoDB.
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/Dima-Vasilyev/simple-react-app.git
-cd simple-react-app
+git clone https://github.com/Dima-Vasilyev/fullstack-auth-app.git
+cd fullstack-auth-app
 
 npm install                        # frontend deps
 cd server && npm install           # backend deps
